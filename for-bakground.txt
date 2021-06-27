@@ -1,0 +1,156 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include<sys/wait.h> 
+#include<errno.h>
+#include <stdlib.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <time.h>
+
+
+
+
+int forking(int flag ,char* argv[])
+{
+ pid_t pid;
+
+ pid = fork();
+        if(pid >= 0)
+        {
+            if(pid == 0)
+            {
+
+                if(execvp(argv[0], argv)<0)
+                {
+                    perror("\nError");
+                    exit(1);
+                    //exit(-1);
+                }
+            }
+            else if(pid > 0)
+            {
+                if(flag==0)
+                {
+                    waitpid(pid,NULL,0);
+                }
+                else
+                {
+                    flag=0;
+                    return flag ;
+                }
+            }
+        }
+        else
+        {
+            perror("\nError in fork");
+            exit(1);
+        }
+        
+}
+
+
+void file_handler(int sig)
+{
+    /*FILE * f;
+    f = fopen ("data.txt","a");
+    fprintf (f, "The process terminated\n");
+    fclose(f);*/
+    time_t current_time;
+    char* c_time_string;
+
+    /* Obtain current time. */
+    current_time = time(NULL);
+
+    if (current_time == ((time_t)-1))
+    {
+        (void) fprintf(stderr, "Failure to obtain the current time.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    /* Convert to local time format. */
+    c_time_string = ctime(&current_time);
+
+    if (c_time_string == NULL)
+    {
+        (void) fprintf(stderr, "Failure to convert the current time.\n");
+        exit(EXIT_FAILURE);
+    }
+
+   
+    
+	FILE *fp ;
+	fp = fopen("child_ter.log","a");
+	fprintf(fp,"%s My child terminated \n ", 		c_time_string);
+	fclose(fp);
+}
+
+
+int cd(char *path) {
+    return chdir(path);
+}
+
+
+int main()
+{
+    //reading line
+    char str[80];
+    char* command_argument[80] ;
+    
+   
+    //tokenization
+    
+    const char s[2] =" ";
+    char *token;
+    
+    //termination
+    int state;
+while(1)
+{
+    int bg = 0 ;
+    int counter = 0 ; 
+    printf("shell>>");
+    gets(str);
+    //("%[^\n]",str);
+    if(strcasecmp(str,"exit") == 0)
+        {
+            exit(0);
+        }
+    token = strtok(str, s);
+    
+    while( token != NULL )
+    {
+                command_argument[counter] = token ;
+                token = strtok(NULL, s);
+        	 counter ++ ;
+        
+    }
+    
+    //check in background
+      if(strcmp(command_argument[counter-1],"&") == 0)
+        {
+        	
+        	command_argument[counter-1]=NULL;
+          	printf("this is a background command\n");
+           	bg = 1 ; 
+          	counter--;
+       }
+       //check cd command
+       else if(strcmp(command_argument[0], "cd") == 0){
+       if (cd(command_argument[1]) < 0) {
+                perror(command_argument[1]);
+            }
+            
+       continue;
+       }
+       else{
+       command_argument[counter]=NULL;
+       }
+    signal(SIGCHLD, file_handler);
+     
+    bg = forking (bg,command_argument);
+    
+   }
+   
+
+}
